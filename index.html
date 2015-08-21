@@ -1,15 +1,113 @@
 <!DOCTYPE html>
 <html>
-  <head>
+<head>
     <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="https://cdn.mxpnl.com/libs/mixpanel-platform/css/reset.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.mxpnl.com/libs/mixpanel-platform/build/mixpanel-platform.v0.latest.min.css">
     <script src="https://cdn.mxpnl.com/libs/mixpanel-platform/build/mixpanel-platform.v0.latest.min.js"></script>
-  </head>
-  <body class="mixpanel-platform-body">
-    <h1>Hello, World!</h1>
+</head>
+<body class="mixpanel-platform-body">
+    <div class="mixpanel-platform-section">
+        <div id="eventSelect" style="float: left;"></div>
+        <div id="by" class="mixpanel-platform-label" style="margin-left: 10px; display: none;">by</div>
+        <div id="propSelect" style="float: left;"></div>
+        <div id="dateSelect" style="float: right;"></div>
+        <div style="clear: both;"></div>
+        <div id="graph"></div>
+    </div>
+    <div id="table"></div>
     <script>
-      // Run queries and display results here
+      var dateSelect  = $('#dateSelect').MPDatepicker();
+    
+        var script = 'var HOUR = 60 * 60 * 1000; \
+        var DAY   = 24 * HOUR; \
+        var WEEK  = 7 * DAY; \
+        var MONTH = 30 * DAY; \
+        \
+        var result = {}; \
+        \
+        \
+        var processEvent = function(event, user) { \
+            if (user) { \
+                user.state = user.state || { steps: [], next: \'\' }; \
+                var current_step = user.state.steps.length; \
+                if (event.name == params.steps[current_step]) { \
+                       user.state.steps[current_step] = event.time; \
+                    user.state.next = \'\'; \
+                } else { \
+                    if (user.state.next === \'\') { \
+                        user.state.next = event.name; \
+                    } \
+                } \
+            } \
+        }; \
+        \
+        var processUser = function(user) { \
+            if (user.state && user.state.steps.length) { \
+                var day = _to_date_string(user.state.steps[0]); \
+                result[day] = result[day] || _initialize_result_for_day(); \
+                for (var i = 0; i < user.state.steps.length; i++) { \
+                    result[day][i].count++; \
+                    if (i > 0) { \
+                        var time_delta = user.state.steps[i] - user.state.steps[i - 1]; \
+                        result[day][i].sum_of_time_deltas += time_delta; \
+                    } \
+                } \
+                result[day][user.state.steps.length - 1].next[user.state.next] = result[day][user.state.steps.length - 1].next[user.state.next] || 0; \
+                result[day][user.state.steps.length - 1].next[user.state.next]++; \
+            } \
+        }; \
+        \
+        var _to_date_string = function(ts) { \
+            var date = new Date(ts); \
+            return date.toISOString().split(\'T\')[0]; \
+        }; \
+        \
+        var _initialize_result_for_day = function() { \
+            var day_result = {}; \
+            for (var i = 0; i < params.steps.length; i++) { \
+                day_result[i] = { count: 0, sum_of_time_deltas: 0, \'next\' : {} }; \
+            } \
+            return day_result; \
+        }; \
+        '
+        //convenience method for grabbing that datepicker value
+        getDates = function() {
+          return dateSelect.MPDatepicker('value')
+        }
+
+        //convenience method for accessing the returned data with an interval param specified
+        fromDateString = function() {
+          dates = getDates()
+          return dates.from.toISOString().slice(0,10);
+        }
+
+        //find interval for bar chart 'interval' param
+        getInterval = function(dates) {
+          intervalDays = Math.ceil((dates.to - dates.from) / (24 * 60 * 60 * 1000)) + 1
+          return intervalDays
+        }
+        
+        var runQuery = function() {
+          var dateRange = dateSelect.MPDatepicker('value');
+          var dates = getDates();
+          
+
+          var query_params = JSON.stringify({"steps":["homepage new","View signup","Viewed report"]});
+          var params = {
+                  "interval": getInterval(dates)
+                  "window_size": '7',
+                  'params':query_params
+              };
+          
+          MP.api.custom_query(script, params).done(function(results) {
+              console.log(results);
+  
+              //do some stuff here
+          })
+        }
+        dateSelect.on('change', runQuery);
     </script>
-  </body>
+    
+</body>
 </html>
